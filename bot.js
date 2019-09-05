@@ -22,7 +22,6 @@ const adapter = new SlackAdapter({
     enable_incomplete: true,
 
     // parameters used to secure webhook endpoint
-    verificationToken: process.env.verificationToken,
     clientSigningSecret: process.env.clientSigningSecret,
 
     // auth token for a single-team app
