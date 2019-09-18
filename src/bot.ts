@@ -1,21 +1,18 @@
 //  __   __  ___        ___
-// |__) /  \  |  |__/ |  |  
-// |__) \__/  |  |  \ |  |  
+// |__) /  \  |  |__/ |  |
+// |__) \__/  |  |  \ |  |
 
 // This is the main file for the tictactoe bot bot.
 
 // Import Botkit's core features
-const { Botkit } = require('botkit');
-const { BotkitCMSHelper } = require('botkit-plugin-cms');
+import { Botkit } from 'botkit';
 
 // Import a platform-specific adapter for slack.
 
-const { SlackAdapter, SlackMessageTypeMiddleware, SlackEventMiddleware } = require('botbuilder-adapter-slack');
+import { SlackAdapter, SlackMessageTypeMiddleware, SlackEventMiddleware } from 'botbuilder-adapter-slack';
 
 // Load process.env values from .env file
 require('dotenv').config();
-
-console.log(process.env);
 
 const adapter = new SlackAdapter({
     // REMOVE THIS OPTION AFTER YOU HAVE CONFIGURED YOUR APP!
@@ -31,7 +28,7 @@ const adapter = new SlackAdapter({
     clientId: process.env.clientId,
     clientSecret: process.env.clientSecret,
     scopes: ['bot'],
-    redirectUri: process.env.redirectUri,
+    redirectUri: process.env.redirectUri!,
 
     // functions required for retrieving team-specific info
     // for use in multi-team apps
@@ -48,18 +45,9 @@ adapter.use(new SlackMessageTypeMiddleware());
 
 const controller = new Botkit({
     webhook_uri: '/api/messages',
-
     adapter: adapter,
-
-    storage: null,
+    webserver_middlewares: [],
 });
-
-if (process.env.cms_uri) {
-    controller.usePlugin(new BotkitCMSHelper({
-        uri: process.env.cms_uri,
-        token: process.env.cms_token,
-    }));
-}
 
 // Once the bot has booted up its internal services, you can use them to do stuff.
 controller.ready(() => {
@@ -67,37 +55,16 @@ controller.ready(() => {
     // load traditional developer-created local custom feature modules
     controller.loadModules(__dirname + '/features');
 
-    /* catch-all that uses the CMS to trigger dialogs */
-    if (controller.plugins.cms) {
-        controller.on('message,direct_message', async (bot, message) => {
-            let results = false;
-            results = await controller.plugins.cms.testTrigger(bot, message);
-
-            if (results !== false) {
-                // do not continue middleware!
-                return false;
-            }
-        });
-    }
-
 });
 
 controller.on('message', async (bot, message) => {
     console.log(message);
-    await bot.reply(message, 'I heard a message!');
+    await bot.reply(message, 'I am sawai bot. heard a message!');
 });
-
 
 controller.webserver.get('/', (req, res) => {
-
     res.send(`This app is running Botkit ${controller.version}.`);
-
 });
-
-
-
-
-
 
 controller.webserver.get('/install', (req, res) => {
     // getInstallLink points to slack's oauth endpoint and includes clientId and scopes
@@ -136,27 +103,27 @@ if (process.env.USERS) {
     userCache = JSON.parse(process.env.USERS);
 }
 
-async function getTokenForTeam(teamId) {
+async function getTokenForTeam(teamId: string) {
     if (tokenCache[teamId]) {
-        return new Promise((resolve) => {
+        return new Promise<string>((resolve) => {
             setTimeout(function () {
                 resolve(tokenCache[teamId]);
             }, 150);
         });
     } else {
-        console.error('Team not found in tokenCache: ', teamId);
+        throw new Error(`Team not found in tokenCache: ${teamId}`);
     }
 }
 
-async function getBotUserByTeam(teamId) {
+async function getBotUserByTeam(teamId: string) {
     if (userCache[teamId]) {
-        return new Promise((resolve) => {
+        return new Promise<string>((resolve) => {
             setTimeout(function () {
                 resolve(userCache[teamId]);
             }, 150);
         });
     } else {
-        console.error('Team not found in userCache: ', teamId);
+        throw new Error(`Team not found in userCache: ${teamId}`);
     }
 }
 

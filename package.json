@@ -4,7 +4,7 @@
   "description": "",
   "main": "bot.js",
   "scripts": {
-    "start": "node bot.js",
+    "start": "ts-node src/bot.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
@@ -12,6 +12,8 @@
     "botbuilder-storage-mongodb": "^0.9.5",
     "botkit": "^4.5.0",
     "botkit-plugin-cms": "^1.0.2",
-    "dotenv": "^7.0.0"
+    "dotenv": "^7.0.0",
+    "ts-node": "^8.4.1",
+    "typescript": "^3.6.3"
   }
 }
