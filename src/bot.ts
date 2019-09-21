@@ -11,6 +11,14 @@ import { Botkit } from 'botkit';
 
 import { SlackAdapter, SlackMessageTypeMiddleware, SlackEventMiddleware } from 'botbuilder-adapter-slack';
 
+import {
+    createTicTacToeSlackGame,
+    destroyTicTacToeSlackGame,
+    joinTicTacToeSlackGame,
+    startTicTacToeGame,
+    processMove
+} from './SlackGameManager';
+
 // Load process.env values from .env file
 require('dotenv').config();
 
@@ -57,10 +65,10 @@ controller.ready(() => {
 
 });
 
-controller.on('message', async (bot, message) => {
-    console.log(message);
-    await bot.reply(message, 'I am sawai bot. heard a message!');
-});
+// controller.on('message', async (bot, message) => {
+//     console.log(message);
+//     await bot.reply(message, 'I am sawai bot. heard a message!');
+// });
 
 controller.webserver.get('/', (req, res) => {
     res.send(`This app is running Botkit ${controller.version}.`);
@@ -127,3 +135,83 @@ async function getBotUserByTeam(teamId: string) {
     }
 }
 
+controller.on('direct_mention', async (bot, message) => {
+    const { channel, text } = message;
+    let { user } = message;
+
+    if (!text) {
+        return;
+    }
+
+    let parsedText = text.split(' ');
+    if (parsedText[0] === 'act_as') {
+        user = parsedText[1];
+        parsedText = parsedText.slice(2);
+    }
+    await bot.reply(message, `You are ${user}`);
+    switch (parsedText[0]) {
+        case 'create': {
+            const isCreated = createTicTacToeSlackGame(channel, user);
+            if (isCreated) {
+                await bot.reply(message, `TicTacToe Game is Created.`);
+            } else {
+                await bot.reply(message, `TicTacToe Game already exists in this channel.`);
+            }
+            break;
+        }
+        case 'destroy': {
+            const isSucceeded = destroyTicTacToeSlackGame(channel, user);
+            if (isSucceeded) {
+                await bot.reply(message, `TicTacToe Game is successfully destroyed.`);
+            } else {
+                await bot.reply(message, `failed to destroy.`);
+            }
+            break;
+        }
+        case 'join': {
+            const isSucceeded = joinTicTacToeSlackGame(channel, user);
+            if (isSucceeded) {
+                await bot.reply(message, `You joined TicTacToe Game successfully.`);
+            } else {
+                await bot.reply(message, `failed to destroy.`);
+            }
+            break;
+        }
+        case 'start': {
+            const isSucceeded = startTicTacToeGame(channel, user);
+            if (isSucceeded) {
+                await bot.reply(message, `TicTacToe Game is successfully started.`);
+            } else {
+                await bot.reply(message, `failed to start.`);
+            }
+            break;
+        }
+        case 'move': {
+            const cellId = Number(parsedText[1])
+            if (!(0 <= cellId || cellId <= 8)) {
+                await bot.reply(message, `Should specify cellId. e.g. move 5`);
+            }
+            const gameInfo = processMove(channel, user, cellId);
+            if (gameInfo === false) {
+                await bot.reply(message, `TicTacToe Game is successfully started.`);
+            } else {
+                const { game } = gameInfo;
+                const c = game!.G.cells.map(p => p === '0' ? 'o' : p === '1' ? 'x' : '_');
+                const stateText = `${c[0]} ${c[1]} ${c[2]}\n${c[3]} ${c[4]} ${c[5]}\n${c[6]} ${c[7]} ${c[8]}`
+                await bot.reply(message, `Move ${cellId}. \`\`\`\n${stateText}\`\`\``);
+                const gameover = game!.ctx.gameover;
+                if (gameover) {
+                    let gameoverText: string;
+                    if (gameover.draw) {
+                        gameoverText = 'DRAW!';
+                    } else {
+                        gameoverText = `WINNER: ${gameover.winner === '0' ? 'o' : 'x'} !!`;
+                    }
+
+                    await bot.reply(message, `Game Over. ${gameoverText}`);
+                }
+            }
+            break;
+        }
+    }
+});
