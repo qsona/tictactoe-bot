@@ -12,6 +12,9 @@ const GameMap = new Map<string, GameInfo>();
 
 const GameSetting = Game(TicTacToe);
 
+export function getTicTacToeSlackGameInfo(channelName: string): GameInfo | undefined {
+  return GameMap.get(channelName);
+}
 export function createTicTacToeSlackGame(channelName: string, userId: string): boolean {
   const game = GameMap.get(channelName);
   if (game) {

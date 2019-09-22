@@ -6,12 +6,14 @@
 
 // Import Botkit's core features
 import { Botkit } from 'botkit';
+import util from 'util';
 
 // Import a platform-specific adapter for slack.
 
 import { SlackAdapter, SlackMessageTypeMiddleware, SlackEventMiddleware } from 'botbuilder-adapter-slack';
 
 import {
+    getTicTacToeSlackGameInfo,
     createTicTacToeSlackGame,
     destroyTicTacToeSlackGame,
     joinTicTacToeSlackGame,
@@ -212,6 +214,14 @@ controller.on('direct_mention', async (bot, message) => {
                 }
             }
             break;
+        }
+        case 'info': {
+            const gameInfo = getTicTacToeSlackGameInfo(channel);
+            if (gameInfo) {
+                await bot.reply(message, util.inspect(gameInfo));
+            } else {
+                await bot.reply(message, `no game in channel ${channel}`);
+            }
         }
     }
 });
