@@ -151,7 +151,7 @@ controller.on('direct_mention', async (bot, message) => {
         user = parsedText[1];
         parsedText = parsedText.slice(2);
     }
-    await bot.reply(message, `You are ${user}`);
+    // await bot.reply(message, `You are ${user}`);
     switch (parsedText[0]) {
         case 'create': {
             const gameName = parsedText[1] || 'tic-tac-toe';
