@@ -7,17 +7,18 @@
 // Import Botkit's core features
 import { Botkit } from 'botkit';
 import util from 'util';
+import { assertNever } from 'assert-never';
 
 // Import a platform-specific adapter for slack.
 
 import { SlackAdapter, SlackMessageTypeMiddleware, SlackEventMiddleware } from 'botbuilder-adapter-slack';
 
 import {
-    getTicTacToeSlackGameInfo,
-    createTicTacToeSlackGame,
-    destroyTicTacToeSlackGame,
-    joinTicTacToeSlackGame,
-    startTicTacToeGame,
+    getGameInfo,
+    create,
+    destroy,
+    join,
+    start,
     processMove
 } from './SlackGameManager';
 
@@ -153,17 +154,17 @@ controller.on('direct_mention', async (bot, message) => {
     await bot.reply(message, `You are ${user}`);
     switch (parsedText[0]) {
         case 'create': {
-            const isCreated = createTicTacToeSlackGame(channel, user);
-            if (isCreated) {
-                await bot.reply(message, `TicTacToe Game is Created.`);
-            } else {
-                await bot.reply(message, `TicTacToe Game already exists in this channel.`);
-            }
+            const gameName = parsedText[1] || 'tic-tac-toe';
+            const result = create(gameName, channel, user);
+            const replyMessage = result.success ? `${gameName} Game is Created.` :
+                result.reason === 'already_created' ? `Game already exists in this channel.` :
+                    result.reason === 'invalid_gamename' ? `Game Name ${gameName} is invalid.` : assertNever(result.reason);
+            await bot.reply(message, replyMessage);
             break;
         }
         case 'destroy': {
-            const isSucceeded = destroyTicTacToeSlackGame(channel, user);
-            if (isSucceeded) {
+            const result = destroy(channel, user);
+            if (result.success) {
                 await bot.reply(message, `TicTacToe Game is successfully destroyed.`);
             } else {
                 await bot.reply(message, `failed to destroy.`);
@@ -171,52 +172,56 @@ controller.on('direct_mention', async (bot, message) => {
             break;
         }
         case 'join': {
-            const isSucceeded = joinTicTacToeSlackGame(channel, user);
-            if (isSucceeded) {
-                await bot.reply(message, `You joined TicTacToe Game successfully.`);
-            } else {
-                await bot.reply(message, `failed to destroy.`);
-            }
+            const result = join(channel, user);
+            const replyMessage = result.success ? `You joined Game successfully.` :
+                result.reason === 'not_created' ? `Game is not created yet.` :
+                    result.reason === 'already_started' ? 'Game is already started.' :
+                        result.reason === 'member_already_enough' ? 'Member is full.' :
+                            assertNever(result.reason);
+            await bot.reply(message, replyMessage);
             break;
         }
         case 'start': {
-            const isSucceeded = startTicTacToeGame(channel, user);
-            if (isSucceeded) {
-                await bot.reply(message, `TicTacToe Game is successfully started.`);
-            } else {
-                await bot.reply(message, `failed to start.`);
-            }
+            const result = start(channel, user);
+            const replyMessage = result.success ? `Game is successfully started.` :
+                result.reason === 'not_created' ? `Failed to Start: Game is not created yet.` :
+                    result.reason === 'already_started' ? 'Failed to Start: Game is already started.' :
+                        result.reason === 'member_not_enough' ? 'Failed to Start: Member is not enough.' :
+                            assertNever(result.reason);
+            await bot.reply(message, replyMessage);
             break;
         }
         case 'move': {
             const cellId = Number(parsedText[1])
             if (!(0 <= cellId || cellId <= 8)) {
                 await bot.reply(message, `Should specify cellId. e.g. move 5`);
+                break;
             }
-            const gameInfo = processMove(channel, user, cellId);
-            if (gameInfo === false) {
+            const proceededGameInfo = processMove(channel, user, cellId);
+            if (!proceededGameInfo.success) {
                 await bot.reply(message, `TicTacToe Game is successfully started.`);
-            } else {
-                const { game } = gameInfo;
-                const c = game!.G.cells.map(p => p === '0' ? 'o' : p === '1' ? 'x' : '_');
-                const stateText = `${c[0]} ${c[1]} ${c[2]}\n${c[3]} ${c[4]} ${c[5]}\n${c[6]} ${c[7]} ${c[8]}`
-                await bot.reply(message, `Move ${cellId}. \`\`\`\n${stateText}\`\`\``);
-                const gameover = game!.ctx.gameover;
-                if (gameover) {
-                    let gameoverText: string;
-                    if (gameover.draw) {
-                        gameoverText = 'DRAW!';
-                    } else {
-                        gameoverText = `WINNER: ${gameover.winner === '0' ? 'o' : 'x'} !!`;
-                    }
-
-                    await bot.reply(message, `Game Over. ${gameoverText}`);
+                break;
+            }
+            const { gameInfo } = proceededGameInfo;
+            const { game } = gameInfo;
+            const c = game!.G.cells.map(p => p === '0' ? 'o' : p === '1' ? 'x' : '_');
+            const stateText = `${c[0]} ${c[1]} ${c[2]}\n${c[3]} ${c[4]} ${c[5]}\n${c[6]} ${c[7]} ${c[8]}`
+            await bot.reply(message, `Move ${cellId}. \`\`\`\n${stateText}\`\`\``);
+            const gameover = game!.ctx.gameover;
+            if (gameover) {
+                let gameoverText: string;
+                if (gameover.draw) {
+                    gameoverText = 'DRAW!';
+                } else {
+                    gameoverText = `WINNER: ${gameover.winner === '0' ? 'o' : 'x'} !!`;
                 }
+
+                await bot.reply(message, `Game Over. ${gameoverText}`);
             }
             break;
         }
         case 'info': {
-            const gameInfo = getTicTacToeSlackGameInfo(channel);
+            const gameInfo = getGameInfo(channel);
             if (gameInfo) {
                 await bot.reply(message, util.inspect(gameInfo));
             } else {

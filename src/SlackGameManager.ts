@@ -1,10 +1,26 @@
 import { TicTacToe, GameState } from './TicTacToe';
-import { Game, IGame, InitializeGame, CreateGameReducer, IPlayer } from 'boardgame.io/core';
+import { Game, IGame, InitializeGame, CreateGameReducer } from 'boardgame.io/core';
 
-type GameInfo = {
+type BaseGameInfo = {
   createdUserId: string,
   userIds: string[],
-  game: IGame<GameState> | null,
+}
+type StartedGameInfo = BaseGameInfo & { isStarted: true, game: IGame<GameState> };
+type NotStartedGameInfo = BaseGameInfo & { isStarted: false };
+type GameInfo = StartedGameInfo | NotStartedGameInfo;
+
+type Result<T> = {
+  success: true
+} | {
+  success: false,
+  reason: T
+}
+type ResultWithStartedGameInfo<T> = {
+  success: true,
+  gameInfo: StartedGameInfo
+} | {
+  success: false,
+  reason: T
 }
 
 // TODO: use datastore
@@ -12,68 +28,85 @@ const GameMap = new Map<string, GameInfo>();
 
 const GameSetting = Game(TicTacToe);
 
-export function getTicTacToeSlackGameInfo(channelName: string): GameInfo | undefined {
+export function getGameInfo(channelName: string): GameInfo | undefined {
   return GameMap.get(channelName);
 }
-export function createTicTacToeSlackGame(channelName: string, userId: string): boolean {
+
+type CreateFailedReason = 'already_created' | 'invalid_gamename';
+export function create(gameName: string, channelName: string, userId: string): Result<CreateFailedReason> {
   const game = GameMap.get(channelName);
   if (game) {
-    return false;
+    return { success: false, reason: 'already_created' };
+  }
+  if (gameName !== 'tic-tac-toe') {
+    return { success: false, reason: 'invalid_gamename' };
   }
   GameMap.set(channelName, {
     createdUserId: userId,
     userIds: [userId],
-    game: null,
+    isStarted: false
   })
-  return true;
+  return { success: true };
 }
 
-export function destroyTicTacToeSlackGame(channelName: string, userId: string): boolean {
-  return GameMap.delete(channelName);
+export function destroy(channelName: string, _userId: string): Result<'not_created'> {
+  return GameMap.delete(channelName) ? { success: true } : { success: false, reason: 'not_created' };
 }
 
-export function joinTicTacToeSlackGame(channelName: string, userId: string): boolean {
+type JoinFailedReason = 'not_created' | 'already_started' | 'member_already_enough';
+export function join(channelName: string, userId: string): Result<JoinFailedReason> {
   const game = GameMap.get(channelName);
   if (!game) {
-    return false;
+    return { success: false, reason: 'not_created' };
+  }
+  if (game.isStarted) {
+    return { success: false, reason: 'already_started' };
+  }
+  // TODO: use game setting
+  if (game.userIds.length >= 2) {
+    return { success: false, reason: 'member_already_enough' };
   }
   game.userIds.push(userId);
-  return true;
+  return { success: true };
 }
 
-export function startTicTacToeGame(channelName: string, userId: string): boolean {
+type StartFailedReason = 'not_created' | 'already_started' | 'member_not_enough';
+export function start(channelName: string, _userId: string): ResultWithStartedGameInfo<StartFailedReason> {
   const gameInfo = GameMap.get(channelName);
   if (!gameInfo) {
-    return false;
+    return { success: false, reason: 'not_created' };
   }
-  if (gameInfo.game) {
-    return false;
+  if (gameInfo.isStarted) {
+    return { success: false, reason: 'already_started' };
   }
+  // TODO: use game setting
+  if (gameInfo.userIds.length < 2) {
+    return { success: false, reason: 'member_not_enough' };
+  }
+
   const game = InitializeGame({ game: GameSetting, numPlayers: gameInfo.userIds.length });
-  GameMap.set(channelName, {
+  const newGameInfo: GameInfo = {
     ...gameInfo,
+    isStarted: true,
     game
-  });
-  return true;
+  }
+  GameMap.set(channelName, newGameInfo);
+  return { success: true, gameInfo: newGameInfo };
 }
 
-export function processMove(channelName: string, userId: string, cellId: number): false | GameInfo {
+type ProcessMoveFailedReason = 'not_started' | 'not_joined'
+export function processMove(channelName: string, userId: string, cellId: number): ResultWithStartedGameInfo<ProcessMoveFailedReason> {
   const gameInfo = GameMap.get(channelName);
-  if (!gameInfo || !gameInfo.game) {
-    return false;
+  if (!gameInfo || !gameInfo.isStarted) {
+    return { success: false, reason: 'not_started' };
   }
   const playerIndex = gameInfo.userIds.indexOf(userId);
   if (playerIndex < 0) {
-    return false;
+    return { success: false, reason: 'not_joined' };
   }
   const { game } = gameInfo;
-  // game.processMove()
-  //const fn = FnWrap(GameSetting.moves['clickCell'], GameSetting);
   const reducer = CreateGameReducer({ game: GameSetting, multiplayer: false });
-  // console.log('1 G', game.G);
-  // console.log('1 ctx', game.ctx);
   const newState = reducer(game, { type: 'MAKE_MOVE', payload: { type: 'clickCell', playerID: String(playerIndex), args: [cellId] } })
-  // console.log('playerID', String(playerIndex), 'cellId', cellId)
   console.log('moveRes', newState)
 
   const newGameInfo = {
@@ -81,7 +114,7 @@ export function processMove(channelName: string, userId: string, cellId: number)
     game: newState
   }
   GameMap.set(channelName, newGameInfo);
-  return newGameInfo;
+  return { success: true, gameInfo: newGameInfo };
 }
 
 // createTicTacToeSlackGame('ch', 'a');
