@@ -53,7 +53,7 @@ export function destroy(channelName: string, _userId: string): Result<'not_creat
   return GameMap.delete(channelName) ? { success: true } : { success: false, reason: 'not_created' };
 }
 
-type JoinFailedReason = 'not_created' | 'already_started' | 'member_already_enough';
+type JoinFailedReason = 'not_created' | 'already_started' | 'already_joined' | 'member_already_enough';
 export function join(channelName: string, userId: string): Result<JoinFailedReason> {
   const game = GameMap.get(channelName);
   if (!game) {
@@ -62,11 +62,31 @@ export function join(channelName: string, userId: string): Result<JoinFailedReas
   if (game.isStarted) {
     return { success: false, reason: 'already_started' };
   }
+  if (game.userIds.includes(userId)) {
+    return { success: false, reason: 'already_joined' };
+  }
   // TODO: use game setting
   if (game.userIds.length >= 2) {
     return { success: false, reason: 'member_already_enough' };
   }
   game.userIds.push(userId);
+  return { success: true };
+}
+
+type LeaveFailedReason = 'not_created' | 'already_started' | 'not_joined';
+export function leave(channelName: string, userId: string): Result<LeaveFailedReason> {
+  const game = GameMap.get(channelName);
+  if (!game) {
+    return { success: false, reason: 'not_created' };
+  }
+  if (game.isStarted) {
+    return { success: false, reason: 'already_started' };
+  }
+  const playerIndex = game.userIds.indexOf(userId);
+  if (playerIndex < 0) {
+    return { success: false, reason: 'not_joined' };
+  }
+  game.userIds.splice(playerIndex, 1);
   return { success: true };
 }
 

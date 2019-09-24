@@ -18,6 +18,7 @@ import {
     create,
     destroy,
     join,
+    leave,
     start,
     processMove
 } from './SlackGameManager';
@@ -176,7 +177,18 @@ controller.on('direct_mention', async (bot, message) => {
             const replyMessage = result.success ? `You joined Game successfully.` :
                 result.reason === 'not_created' ? `Game is not created yet.` :
                     result.reason === 'already_started' ? 'Game is already started.' :
-                        result.reason === 'member_already_enough' ? 'Member is full.' :
+                        result.reason === 'already_joined' ? 'You have already joined.' :
+                            result.reason === 'member_already_enough' ? 'Member is full.' :
+                                assertNever(result.reason);
+            await bot.reply(message, replyMessage);
+            break;
+        }
+        case 'leave': {
+            const result = leave(channel, user);
+            const replyMessage = result.success ? `You leaved Game successfully.` :
+                result.reason === 'not_created' ? `Game is not created yet.` :
+                    result.reason === 'already_started' ? 'Game is already started.' :
+                        result.reason === 'not_joined' ? `You haven't joined yet.` :
                             assertNever(result.reason);
             await bot.reply(message, replyMessage);
             break;
