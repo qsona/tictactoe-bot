@@ -204,31 +204,24 @@ controller.on('direct_mention', async (bot, message) => {
             break;
         }
         case 'move': {
-            const cellId = Number(parsedText[1])
-            if (!(0 <= cellId || cellId <= 8)) {
-                await bot.reply(message, `Should specify cellId. e.g. move 5`);
+            const moveName = parsedText[1];
+            const args = parsedText.slice(2);
+            if (!moveName) {
                 break;
             }
-            const proceededGameInfo = processMove(channel, user, cellId);
-            if (!proceededGameInfo.success) {
-                await bot.reply(message, `TicTacToe Game is successfully started.`);
+            const result = processMove(channel, user, moveName, args);
+            if (!result.success) {
+                const replyMessage = result.reason === 'not_joined' ? `You haven't joined this game.` :
+                    result.reason === 'not_started' ? 'Game is not started.' : assertNever(result.reason);
+                await bot.reply(message, replyMessage);
                 break;
             }
-            const { gameInfo } = proceededGameInfo;
-            const { game } = gameInfo;
-            const c = game!.G.cells.map(p => p === '0' ? 'o' : p === '1' ? 'x' : '_');
-            const stateText = `${c[0]} ${c[1]} ${c[2]}\n${c[3]} ${c[4]} ${c[5]}\n${c[6]} ${c[7]} ${c[8]}`
-            await bot.reply(message, `Move ${cellId}. \`\`\`\n${stateText}\`\`\``);
-            const gameover = game!.ctx.gameover;
-            if (gameover) {
-                let gameoverText: string;
-                if (gameover.draw) {
-                    gameoverText = 'DRAW!';
-                } else {
-                    gameoverText = `WINNER: ${gameover.winner === '0' ? 'o' : 'x'} !!`;
-                }
-
-                await bot.reply(message, `Game Over. ${gameoverText}`);
+            const { view } = result;
+            const stateText = view.stateText();
+            await bot.reply(message, `Move ${moveName} ${args.join(', ')} | by User ${user} \`\`\`\n${stateText}\`\`\``);
+            const gameoverText = view.gameoverText();
+            if (gameoverText != null) {
+                await bot.reply(message, `Game Over. ----------\n${gameoverText}`);
 
                 destroy(channel, user);
             }

@@ -1,23 +1,31 @@
-import { TicTacToe, GameState } from './TicTacToe';
 import { Game, IGame, InitializeGame, CreateGameReducer } from 'boardgame.io/core';
 
-type BaseGameInfo = {
+// TODO: remove these dependencies
+import { TicTacToe, GameState } from './TicTacToe';
+import { TicTacToeViewModel } from './TickTacToeViewModel';
+
+export interface ViewModel {
+  stateText(): string;
+  gameoverText(): string | null | undefined;
+}
+
+export type BaseGameInfo = {
   createdUserId: string,
   userIds: string[],
 }
-type StartedGameInfo = BaseGameInfo & { isStarted: true, game: IGame<GameState> };
-type NotStartedGameInfo = BaseGameInfo & { isStarted: false };
-type GameInfo = StartedGameInfo | NotStartedGameInfo;
+export type StartedGameInfo = BaseGameInfo & { isStarted: true, game: IGame<GameState> };
+export type NotStartedGameInfo = BaseGameInfo & { isStarted: false };
+export type GameInfo = StartedGameInfo | NotStartedGameInfo;
 
-type Result<T> = {
+export type Result<T> = {
   success: true
 } | {
   success: false,
   reason: T
 }
-type ResultWithStartedGameInfo<T> = {
+export type ResultWithViewModel<T> = {
   success: true,
-  gameInfo: StartedGameInfo
+  view: ViewModel
 } | {
   success: false,
   reason: T
@@ -91,7 +99,7 @@ export function leave(channelName: string, userId: string): Result<LeaveFailedRe
 }
 
 type StartFailedReason = 'not_created' | 'already_started' | 'member_not_enough';
-export function start(channelName: string, _userId: string): ResultWithStartedGameInfo<StartFailedReason> {
+export function start(channelName: string, _userId: string): ResultWithViewModel<StartFailedReason> {
   const gameInfo = GameMap.get(channelName);
   if (!gameInfo) {
     return { success: false, reason: 'not_created' };
@@ -105,17 +113,17 @@ export function start(channelName: string, _userId: string): ResultWithStartedGa
   }
 
   const game = InitializeGame({ game: GameSetting, numPlayers: gameInfo.userIds.length });
-  const newGameInfo: GameInfo = {
+  const newGameInfo: StartedGameInfo = {
     ...gameInfo,
     isStarted: true,
-    game
+    game,
   }
   GameMap.set(channelName, newGameInfo);
-  return { success: true, gameInfo: newGameInfo };
+  return { success: true, view: new TicTacToeViewModel(newGameInfo) };
 }
 
 type ProcessMoveFailedReason = 'not_started' | 'not_joined'
-export function processMove(channelName: string, userId: string, cellId: number): ResultWithStartedGameInfo<ProcessMoveFailedReason> {
+export function processMove(channelName: string, userId: string, moveName: string, args: string[]): ResultWithViewModel<ProcessMoveFailedReason> {
   const gameInfo = GameMap.get(channelName);
   if (!gameInfo || !gameInfo.isStarted) {
     return { success: false, reason: 'not_started' };
@@ -126,15 +134,16 @@ export function processMove(channelName: string, userId: string, cellId: number)
   }
   const { game } = gameInfo;
   const reducer = CreateGameReducer({ game: GameSetting, multiplayer: false });
-  const newState = reducer(game, { type: 'MAKE_MOVE', payload: { type: 'clickCell', playerID: String(playerIndex), args: [cellId] } })
+  // TODO: transform args from view to model
+  const newState = reducer(game, { type: 'MAKE_MOVE', payload: { type: moveName, playerID: String(playerIndex), args: args } })
   console.log('moveRes', newState)
 
-  const newGameInfo = {
+  const newGameInfo: StartedGameInfo = {
     ...gameInfo,
-    game: newState
+    game: newState,
   }
   GameMap.set(channelName, newGameInfo);
-  return { success: true, gameInfo: newGameInfo };
+  return { success: true, view: new TicTacToeViewModel(newGameInfo) };
 }
 
 // createTicTacToeSlackGame('ch', 'a');

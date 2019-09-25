@@ -1,4 +1,5 @@
 declare module 'boardgame.io/core' {
+  export const INVALID_MOVE: string;
   export type IPlayer = '0' | '1';
   export class FlowObj {
     ctx: (players: number) => any;

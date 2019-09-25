@@ -27,7 +27,7 @@ export const TicTacToe: IGameArgs<GameState> = {
   }),
 
   moves: {
-    clickCell(G, ctx, id: number) {
+    cell(G, ctx, id: number) {
       const cells = [...G.cells];
 
       if (cells[id] == null) {
