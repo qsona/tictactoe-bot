@@ -1,13 +1,13 @@
 import { GameState } from './TicTacToe';
 import { IGame } from 'boardgame.io/core';
-import { StartedGameInfo, ViewModel } from './SlackGameManager';
+import { StartedGameInfo, ViewModel, ViewModelConstructor } from './SlackGameManager';
 
-export class TicTacToeViewModel implements ViewModel {
+export const TicTacToeViewModel: ViewModelConstructor<GameState> = class TicTacToeViewModel implements ViewModel<GameState> {
   game: IGame<GameState>;
   createdUserId: string;
   userIds: string[];
 
-  constructor({ game, createdUserId, userIds }: StartedGameInfo) {
+  constructor({ game, createdUserId, userIds }: StartedGameInfo<GameState>) {
     this.game = game;
     this.userIds = userIds;
     this.createdUserId = createdUserId;

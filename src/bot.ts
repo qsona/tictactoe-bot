@@ -48,61 +48,6 @@ const adapter = new SlackAdapter({
     getBotUserByTeam: getBotUserByTeam,
 });
 
-// Use SlackEventMiddleware to emit events that match their original Slack event types.
-adapter.use(new SlackEventMiddleware());
-
-// Use SlackMessageType middleware to further classify messages as direct_message, direct_mention, or mention
-adapter.use(new SlackMessageTypeMiddleware());
-
-
-const controller = new Botkit({
-    webhook_uri: '/api/messages',
-    adapter: adapter,
-    webserver_middlewares: [],
-});
-
-// Once the bot has booted up its internal services, you can use them to do stuff.
-controller.ready(() => {
-
-    // load traditional developer-created local custom feature modules
-    controller.loadModules(__dirname + '/features');
-
-});
-
-// controller.on('message', async (bot, message) => {
-//     console.log(message);
-//     await bot.reply(message, 'I am sawai bot. heard a message!');
-// });
-
-controller.webserver.get('/', (req, res) => {
-    res.send(`This app is running Botkit ${controller.version}.`);
-});
-
-controller.webserver.get('/install', (req, res) => {
-    // getInstallLink points to slack's oauth endpoint and includes clientId and scopes
-    res.redirect(controller.adapter.getInstallLink());
-});
-
-controller.webserver.get('/install/auth', async (req, res) => {
-    try {
-        const results = await controller.adapter.validateOauthCode(req.query.code);
-
-        console.log('FULL OAUTH DETAILS', results);
-
-        // Store token by team in bot state.
-        tokenCache[results.team_id] = results.bot.bot_access_token;
-
-        // Capture team to bot id
-        userCache[results.team_id] = results.bot.bot_user_id;
-
-        res.json('Success! Bot installed.');
-
-    } catch (err) {
-        console.error('OAUTH ERROR:', err);
-        res.status(401);
-        res.send(err.message);
-    }
-});
 
 let tokenCache = {};
 let userCache = {};
@@ -139,101 +84,161 @@ async function getBotUserByTeam(teamId: string) {
     }
 }
 
-controller.on('direct_mention', async (bot, message) => {
-    const { channel, text } = message;
-    let { user } = message;
+// Use SlackEventMiddleware to emit events that match their original Slack event types.
+adapter.use(new SlackEventMiddleware());
 
-    if (!text) {
-        return;
-    }
+// Use SlackMessageType middleware to further classify messages as direct_message, direct_mention, or mention
+adapter.use(new SlackMessageTypeMiddleware());
 
-    let parsedText = text.split(' ');
-    if (parsedText[0] === 'act_as') {
-        user = parsedText[1];
-        parsedText = parsedText.slice(2);
-    }
-    // await bot.reply(message, `You are ${user}`);
-    switch (parsedText[0]) {
-        case 'create': {
-            const gameName = parsedText[1] || 'tic-tac-toe';
-            const result = create(gameName, channel, user);
-            const replyMessage = result.success ? `${gameName} Game is Created.` :
-                result.reason === 'already_created' ? `Game already exists in this channel.` :
-                    result.reason === 'invalid_gamename' ? `Game Name ${gameName} is invalid.` : assertNever(result.reason);
-            await bot.reply(message, replyMessage);
-            break;
+
+const controller = new Botkit({
+    webhook_uri: '/api/messages',
+    adapter: adapter,
+    webserver_middlewares: [],
+});
+
+export default function () {
+    // Once the bot has booted up its internal services, you can use them to do stuff.
+    controller.ready(() => {
+
+        // load traditional developer-created local custom feature modules
+        controller.loadModules(__dirname + '/features');
+
+    });
+
+    // controller.on('message', async (bot, message) => {
+    //     console.log(message);
+    //     await bot.reply(message, 'I am sawai bot. heard a message!');
+    // });
+
+    controller.webserver.get('/', (req, res) => {
+        res.send(`This app is running Botkit ${controller.version}.`);
+    });
+
+    controller.webserver.get('/install', (req, res) => {
+        // getInstallLink points to slack's oauth endpoint and includes clientId and scopes
+        res.redirect(controller.adapter.getInstallLink());
+    });
+
+    controller.webserver.get('/install/auth', async (req, res) => {
+        try {
+            const results = await controller.adapter.validateOauthCode(req.query.code);
+
+            console.log('FULL OAUTH DETAILS', results);
+
+            // Store token by team in bot state.
+            tokenCache[results.team_id] = results.bot.bot_access_token;
+
+            // Capture team to bot id
+            userCache[results.team_id] = results.bot.bot_user_id;
+
+            res.json('Success! Bot installed.');
+
+        } catch (err) {
+            console.error('OAUTH ERROR:', err);
+            res.status(401);
+            res.send(err.message);
         }
-        case 'destroy': {
-            const result = destroy(channel, user);
-            if (result.success) {
-                await bot.reply(message, `TicTacToe Game is successfully destroyed.`);
-            } else {
-                await bot.reply(message, `failed to destroy.`);
-            }
-            break;
+    });
+
+
+    controller.on('direct_mention', async (bot, message) => {
+        const { channel, text } = message;
+        let { user } = message;
+
+        if (!text) {
+            return;
         }
-        case 'join': {
-            const result = join(channel, user);
-            const replyMessage = result.success ? `You joined Game successfully.` :
-                result.reason === 'not_created' ? `Game is not created yet.` :
-                    result.reason === 'already_started' ? 'Game is already started.' :
-                        result.reason === 'already_joined' ? 'You have already joined.' :
-                            result.reason === 'member_already_enough' ? 'Member is full.' :
-                                assertNever(result.reason);
-            await bot.reply(message, replyMessage);
-            break;
+
+        let parsedText = text.split(' ');
+        if (parsedText[0] === 'act_as') {
+            user = parsedText[1];
+            parsedText = parsedText.slice(2);
         }
-        case 'leave': {
-            const result = leave(channel, user);
-            const replyMessage = result.success ? `You leaved Game successfully.` :
-                result.reason === 'not_created' ? `Game is not created yet.` :
-                    result.reason === 'already_started' ? 'Game is already started.' :
-                        result.reason === 'not_joined' ? `You haven't joined yet.` :
-                            assertNever(result.reason);
-            await bot.reply(message, replyMessage);
-            break;
-        }
-        case 'start': {
-            const result = start(channel, user);
-            const replyMessage = result.success ? `Game is successfully started.` :
-                result.reason === 'not_created' ? `Failed to Start: Game is not created yet.` :
-                    result.reason === 'already_started' ? 'Failed to Start: Game is already started.' :
-                        result.reason === 'member_not_enough' ? 'Failed to Start: Member is not enough.' :
-                            assertNever(result.reason);
-            await bot.reply(message, replyMessage);
-            break;
-        }
-        case 'move': {
-            const moveName = parsedText[1];
-            const args = parsedText.slice(2);
-            if (!moveName) {
-                break;
-            }
-            const result = processMove(channel, user, moveName, args);
-            if (!result.success) {
-                const replyMessage = result.reason === 'not_joined' ? `You haven't joined this game.` :
-                    result.reason === 'not_started' ? 'Game is not started.' : assertNever(result.reason);
+        // await bot.reply(message, `You are ${user}`);
+        switch (parsedText[0]) {
+            case 'create': {
+                const gameName = parsedText[1] || 'tic-tac-toe';
+                const result = create(gameName, channel, user);
+                const replyMessage = result.success ? `${gameName} Game is Created.` :
+                    result.reason === 'already_created' ? `Game already exists in this channel.` :
+                        result.reason === 'invalid_gamename' ? `Game Name ${gameName} is invalid.` : assertNever(result.reason);
                 await bot.reply(message, replyMessage);
                 break;
             }
-            const { view } = result;
-            const stateText = view.stateText();
-            await bot.reply(message, `Move ${moveName} ${args.join(', ')} | by User ${user} \`\`\`\n${stateText}\`\`\``);
-            const gameoverText = view.gameoverText();
-            if (gameoverText != null) {
-                await bot.reply(message, `Game Over. ----------\n${gameoverText}`);
+            case 'destroy': {
+                const result = destroy(channel, user);
+                if (result.success) {
+                    await bot.reply(message, `TicTacToe Game is successfully destroyed.`);
+                } else {
+                    await bot.reply(message, `failed to destroy.`);
+                }
+                break;
+            }
+            case 'join': {
+                const result = join(channel, user);
+                const replyMessage = result.success ? `You joined Game successfully.` :
+                    result.reason === 'not_created' ? `Game is not created yet.` :
+                        result.reason === 'already_started' ? 'Game is already started.' :
+                            result.reason === 'already_joined' ? 'You have already joined.' :
+                                result.reason === 'member_already_enough' ? 'Member is full.' :
+                                    assertNever(result.reason);
+                await bot.reply(message, replyMessage);
+                break;
+            }
+            case 'leave': {
+                const result = leave(channel, user);
+                const replyMessage = result.success ? `You leaved Game successfully.` :
+                    result.reason === 'not_created' ? `Game is not created yet.` :
+                        result.reason === 'already_started' ? 'Game is already started.' :
+                            result.reason === 'not_joined' ? `You haven't joined yet.` :
+                                assertNever(result.reason);
+                await bot.reply(message, replyMessage);
+                break;
+            }
+            case 'start': {
+                const result = start(channel, user);
+                const replyMessage = result.success ? `Game is successfully started.` :
+                    result.reason === 'not_created' ? `Failed to Start: Game is not created yet.` :
+                        result.reason === 'already_started' ? 'Failed to Start: Game is already started.' :
+                            result.reason === 'member_not_enough' ? 'Failed to Start: Member is not enough.' :
+                                assertNever(result.reason);
+                await bot.reply(message, replyMessage);
+                break;
+            }
+            case 'move': {
+                const moveName = parsedText[1];
+                const args = parsedText.slice(2);
+                if (!moveName) {
+                    break;
+                }
+                const result = processMove(channel, user, moveName, args);
+                if (!result.success) {
+                    const replyMessage = result.reason === 'not_joined' ? `You haven't joined this game.` :
+                        result.reason === 'not_started' ? 'Game is not started.' : assertNever(result.reason);
+                    await bot.reply(message, replyMessage);
+                    break;
+                }
+                const { view } = result;
+                const stateText = view.stateText();
+                await bot.reply(message, `Move ${moveName} ${args.join(', ')} | by User ${user} \`\`\`\n${stateText}\`\`\``);
+                const gameoverText = view.gameoverText();
+                if (gameoverText != null) {
+                    await bot.reply(message, `Game Over. ----------\n${gameoverText}`);
 
-                destroy(channel, user);
+                    destroy(channel, user);
+                }
+                break;
             }
-            break;
-        }
-        case 'info': {
-            const gameInfo = getGameInfo(channel);
-            if (gameInfo) {
-                await bot.reply(message, util.inspect(gameInfo));
-            } else {
-                await bot.reply(message, `no game in channel ${channel}`);
+            case 'info': {
+                const gameInfo = getGameInfo(channel);
+                if (gameInfo) {
+                    await bot.reply(message, util.inspect(gameInfo));
+                } else {
+                    await bot.reply(message, `no game in channel ${channel}`);
+                }
             }
         }
-    }
-});
+    });
+
+}
