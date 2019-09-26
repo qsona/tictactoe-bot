@@ -1,4 +1,4 @@
-import { IPlayer, IGameArgs } from 'boardgame.io/core';
+import { IPlayer, IGameArgs, INVALID_MOVE } from 'boardgame.io/core';
 
 export type GameState = {
   cells: Array<IPlayer | null>
@@ -30,10 +30,12 @@ export const TicTacToe: IGameArgs<GameState> = {
     cell(G, ctx, id: number) {
       const cells = [...G.cells];
 
-      if (cells[id] == null) {
-        cells[id] = ctx.currentPlayer;
-        return { ...G, cells };
+      if (cells[id] !== null) {
+        return INVALID_MOVE;
       }
+
+      cells[id] = ctx.currentPlayer;
+      return { ...G, cells };
     },
   },
 
