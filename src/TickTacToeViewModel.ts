@@ -1,8 +1,8 @@
 import { GameState } from './TicTacToe';
 import { IGame } from 'boardgame.io/core';
-import { StartedGameInfo, ViewModel, ViewModelConstructor } from './SlackGameManager';
+import { StartedGameInfo, ViewModel, ViewModelStatic } from './SlackGameManager';
 
-export const TicTacToeViewModel: ViewModelConstructor<GameState> = class TicTacToeViewModel implements ViewModel<GameState> {
+export const TicTacToeViewModel: ViewModelStatic<GameState> = class TicTacToeViewModel implements ViewModel<GameState> {
   game: IGame<GameState>;
   createdUserId: string;
   userIds: string[];
@@ -11,6 +11,18 @@ export const TicTacToeViewModel: ViewModelConstructor<GameState> = class TicTacT
     this.game = game;
     this.userIds = userIds;
     this.createdUserId = createdUserId;
+  }
+
+  static transformMoveCommand(args: string[]) {
+    const [x, y] = args.slice(args[0] === 'cell' ? 1 : 0).map(s => Number(s));
+    const isValid =
+      Number.isInteger(x) && 1 <= x && x <= 3 &&
+      Number.isInteger(y) && 1 <= y && y <= 3;
+    if (!isValid) {
+      return null;
+    }
+
+    return { moveName: 'cell', args: [(x - 1) * 3 + (y - 1)] };
   }
 
   stateText() {

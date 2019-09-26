@@ -207,21 +207,23 @@ export default function () {
                 break;
             }
             case 'move': {
-                const moveName = parsedText[1];
-                const args = parsedText.slice(2);
-                if (!moveName) {
-                    break;
-                }
-                const result = processMove(channel, user, moveName, args);
+                // const moveName = parsedText[1];
+                // const args = parsedText.slice(2);
+                // if (!moveName) {
+                //     break;
+                // }
+                const args = parsedText.slice(1);
+                const result = processMove(channel, user, args);
                 if (!result.success) {
                     const replyMessage = result.reason === 'not_joined' ? `You haven't joined this game.` :
-                        result.reason === 'not_started' ? 'Game is not started.' : assertNever(result.reason);
+                        result.reason === 'not_started' ? 'Game is not started.' :
+                            result.reason === 'invalid_args' ? 'Move arguments are invalid.' : assertNever(result.reason);
                     await bot.reply(message, replyMessage);
                     break;
                 }
                 const { view } = result;
                 const stateText = view.stateText();
-                await bot.reply(message, `Move ${moveName} ${args.join(', ')} | by User ${user} \`\`\`\n${stateText}\`\`\``);
+                await bot.reply(message, `Move ${args.join(', ')} | by User ${user} \`\`\`\n${stateText}\`\`\``);
                 const gameoverText = view.gameoverText();
                 if (gameoverText != null) {
                     await bot.reply(message, `Game Over. ----------\n${gameoverText}`);

@@ -1,7 +1,8 @@
 import { GameObj, IGame, InitializeGame, CreateGameReducer } from 'boardgame.io/core';
 
-export interface ViewModelConstructor<GameState> {
+export interface ViewModelStatic<GameState> {
   new(g: StartedGameInfo<GameState>);
+  transformMoveCommand(args: string[]): { moveName: string, args: any[] } | null | undefined;
 }
 
 export interface ViewModel<GameState> {
@@ -32,13 +33,13 @@ export type ResultWithViewModel<Reason, GameState> = {
   reason: Reason
 }
 
-type GameSetting<GameState> = { gameObj: GameObj<GameState>, viewModelClass: ViewModelConstructor<GameState> }
+type GameSetting<GameState> = { gameObj: GameObj<GameState>, viewModelClass: ViewModelStatic<GameState> }
 
 const GameSettingMap = new Map<string, GameSetting<any>>();
 export function registerGame<GameState>(
   name: string,
   gameObj: GameObj<GameState>,
-  viewModelClass: ViewModelConstructor<GameState>,
+  viewModelClass: ViewModelStatic<GameState>,
 ) {
   GameSettingMap.set(name, { gameObj, viewModelClass })
 }
@@ -135,8 +136,8 @@ export function start(channelName: string, _userId: string): ResultWithViewModel
   return { success: true, view: new gameSetting.viewModelClass(newGameInfo) };
 }
 
-type ProcessMoveFailedReason = 'not_started' | 'not_joined'
-export function processMove<GameState>(channelName: string, userId: string, moveName: string, args: string[]): ResultWithViewModel<ProcessMoveFailedReason, GameState> {
+type ProcessMoveFailedReason = 'not_started' | 'not_joined' | 'invalid_args'
+export function processMove<GameState>(channelName: string, userId: string, args: string[]): ResultWithViewModel<ProcessMoveFailedReason, GameState> {
   const gameInfo = GameMap.get(channelName) as GameInfo<GameState>;
   if (!gameInfo || !gameInfo.isStarted) {
     return { success: false, reason: 'not_started' };
@@ -152,7 +153,13 @@ export function processMove<GameState>(channelName: string, userId: string, move
     multiplayer: false
   });
   // TODO: transform args from view to model
-  const newState = reducer(game, { type: 'MAKE_MOVE', payload: { type: moveName, playerID: String(playerIndex), args: args } })
+  const { viewModelClass } = gameSetting;
+  const transformed = viewModelClass.transformMoveCommand(args);
+  if (!transformed) {
+    return { success: false, reason: 'invalid_args' };
+  }
+  const { moveName, args: moveArgs } = transformed;
+  const newState = reducer(game, { type: 'MAKE_MOVE', payload: { type: moveName, playerID: String(playerIndex), args: moveArgs } })
   console.log('moveRes', newState)
 
   const newGameInfo: StartedGameInfo<GameState> = {
