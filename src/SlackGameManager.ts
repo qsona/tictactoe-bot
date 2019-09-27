@@ -77,7 +77,7 @@ export function destroy(channelName: string, _userId: string): Result<'not_creat
   return GameMap.delete(channelName) ? { success: true } : { success: false, reason: 'not_created' };
 }
 
-type JoinFailedReason = 'not_created' | 'already_started' | 'already_joined' | 'member_already_enough';
+type JoinFailedReason = 'not_created' | 'already_started' | 'already_joined';
 export function join(channelName: string, userId: string): Result<JoinFailedReason> {
   const game = GameMap.get(channelName);
   if (!game) {
@@ -90,11 +90,6 @@ export function join(channelName: string, userId: string): Result<JoinFailedReas
     return { success: false, reason: 'already_joined' };
   }
 
-  const gameSetting = GameSettingMap.get(game.gameName);
-  // TODO: use game setting
-  if (gameSetting!.cuiGame.isValidNumPlayer(game.userIds.length)) {
-    return { success: false, reason: 'member_already_enough' };
-  }
   game.userIds.push(userId);
   return { success: true };
 }
@@ -116,7 +111,7 @@ export function leave(channelName: string, userId: string): Result<LeaveFailedRe
   return { success: true };
 }
 
-type StartFailedReason = 'not_created' | 'already_started' | 'member_not_enough';
+type StartFailedReason = 'not_created' | 'already_started' | 'num_player_invalid';
 export function start(channelName: string, _userId: string): ResultOnStartedGame<StartFailedReason, any> {
   const gameInfo = GameMap.get(channelName);
   if (!gameInfo) {
@@ -125,12 +120,11 @@ export function start(channelName: string, _userId: string): ResultOnStartedGame
   if (gameInfo.isStarted) {
     return { success: false, reason: 'already_started' };
   }
-  // TODO: use game setting
-  if (gameInfo.userIds.length < 2) {
-    return { success: false, reason: 'member_not_enough' };
-  }
 
-  const gameSetting = GameSettingMap.get(gameInfo.gameName)!
+  const gameSetting = GameSettingMap.get(gameInfo.gameName)!;
+  if (gameSetting.cuiGame.isValidNumPlayer(gameInfo.userIds.length)) {
+    return { success: false, reason: 'num_player_invalid' };
+  }
 
   const game = InitializeGame<any>({ game: gameSetting.gameObj, numPlayers: gameInfo.userIds.length });
   const newGameInfo: StartedGameInfo<any> = {

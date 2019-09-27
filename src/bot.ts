@@ -181,8 +181,7 @@ export default function () {
                     result.reason === 'not_created' ? `Game is not created yet.` :
                         result.reason === 'already_started' ? 'Game is already started.' :
                             result.reason === 'already_joined' ? 'You have already joined.' :
-                                result.reason === 'member_already_enough' ? 'Member is full.' :
-                                    assertNever(result.reason);
+                                assertNever(result.reason);
                 await bot.reply(message, replyMessage);
                 break;
             }
@@ -201,7 +200,7 @@ export default function () {
                 const replyMessage = result.success ? `Game is successfully started.` :
                     result.reason === 'not_created' ? `Failed to Start: Game is not created yet.` :
                         result.reason === 'already_started' ? 'Failed to Start: Game is already started.' :
-                            result.reason === 'member_not_enough' ? 'Failed to Start: Member is not enough.' :
+                            result.reason === 'num_player_invalid' ? 'Failed to Start: Number of players is invalid.' :
                                 assertNever(result.reason);
                 await bot.reply(message, replyMessage);
                 break;
