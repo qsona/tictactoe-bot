@@ -1,14 +1,6 @@
 import { GameObj, IGame, InitializeGame, CreateGameReducer } from 'boardgame.io/core';
-
-export interface ViewModelStatic<GameState> {
-  new(g: StartedGameInfo<GameState>);
-  transformMoveCommand(args: string[]): { moveName: string, args: any[] } | null | undefined;
-}
-
-export interface ViewModel<GameState> {
-  stateText(): string;
-  gameoverText(): string | null | undefined;
-}
+import { CUIGame, defaultCUIGame } from './CUIGame';
+import assertNever from 'assert-never';
 
 export type BaseGameInfo = {
   gameName: string,
@@ -25,23 +17,35 @@ export type Result<T> = {
   success: false,
   reason: T
 }
-export type ResultWithViewModel<Reason, GameState> = {
+export type ResultOnStartedGame<Reason, GameState> = {
   success: true,
-  view: ViewModel<GameState>
+  cuiGame: CUIGame<GameState>,
+  gameInfo: StartedGameInfo<GameState>,
 } | {
   success: false,
   reason: Reason
 }
 
-type GameSetting<GameState> = { gameObj: GameObj<GameState>, viewModelClass: ViewModelStatic<GameState> }
+type GameSetting<GameState> = {
+  gameObj: GameObj<GameState>,
+  cuiGame: CUIGame<GameState> & { isValidNumPlayer: (numPlayer: number) => boolean },
+};
 
 const GameSettingMap = new Map<string, GameSetting<any>>();
 export function registerGame<GameState>(
   name: string,
   gameObj: GameObj<GameState>,
-  viewModelClass: ViewModelStatic<GameState>,
+  cuiGame: Partial<CUIGame<GameState>>,
 ) {
-  GameSettingMap.set(name, { gameObj, viewModelClass })
+  const newCUIGame: CUIGame<GameState> = Object.assign({}, defaultCUIGame, cuiGame);
+  const { validNumPlayers } = newCUIGame;
+  const isValidNumPlayer =
+    Array.isArray(validNumPlayers) ? (numPlayer: number) => validNumPlayers.includes(numPlayer) :
+      typeof validNumPlayers === 'number' ? (numPlayer: number) => validNumPlayers === numPlayer :
+        typeof validNumPlayers === 'function' ? validNumPlayers :
+          assertNever(validNumPlayers);
+
+  GameSettingMap.set(name, { gameObj, cuiGame: { ...newCUIGame, isValidNumPlayer } });
 }
 
 // TODO: use datastore
@@ -85,8 +89,10 @@ export function join(channelName: string, userId: string): Result<JoinFailedReas
   if (game.userIds.includes(userId)) {
     return { success: false, reason: 'already_joined' };
   }
+
+  const gameSetting = GameSettingMap.get(game.gameName);
   // TODO: use game setting
-  if (game.userIds.length >= 2) {
+  if (gameSetting!.cuiGame.isValidNumPlayer(game.userIds.length)) {
     return { success: false, reason: 'member_already_enough' };
   }
   game.userIds.push(userId);
@@ -111,7 +117,7 @@ export function leave(channelName: string, userId: string): Result<LeaveFailedRe
 }
 
 type StartFailedReason = 'not_created' | 'already_started' | 'member_not_enough';
-export function start(channelName: string, _userId: string): ResultWithViewModel<StartFailedReason, any> {
+export function start(channelName: string, _userId: string): ResultOnStartedGame<StartFailedReason, any> {
   const gameInfo = GameMap.get(channelName);
   if (!gameInfo) {
     return { success: false, reason: 'not_created' };
@@ -133,11 +139,11 @@ export function start(channelName: string, _userId: string): ResultWithViewModel
     game,
   }
   GameMap.set(channelName, newGameInfo);
-  return { success: true, view: new gameSetting.viewModelClass(newGameInfo) };
+  return { success: true, cuiGame: gameSetting.cuiGame, gameInfo: newGameInfo };
 }
 
 type ProcessMoveFailedReason = 'not_started' | 'not_joined' | 'invalid_args'
-export function processMove<GameState>(channelName: string, userId: string, args: string[]): ResultWithViewModel<ProcessMoveFailedReason, GameState> {
+export function processMove<GameState>(channelName: string, userId: string, args: string[]): ResultOnStartedGame<ProcessMoveFailedReason, GameState> {
   const gameInfo = GameMap.get(channelName) as GameInfo<GameState>;
   if (!gameInfo || !gameInfo.isStarted) {
     return { success: false, reason: 'not_started' };
@@ -152,9 +158,9 @@ export function processMove<GameState>(channelName: string, userId: string, args
     game: gameSetting.gameObj,
     multiplayer: false
   });
-  // TODO: transform args from view to model
-  const { viewModelClass } = gameSetting;
-  const transformed = viewModelClass.transformMoveCommand(args);
+  // TODO: transform args from cui input to model
+  const { cuiGame } = gameSetting;
+  const transformed = cuiGame.transformMoveCommand(args);
   if (!transformed) {
     return { success: false, reason: 'invalid_args' };
   }
@@ -167,7 +173,7 @@ export function processMove<GameState>(channelName: string, userId: string, args
     game: newState,
   }
   GameMap.set(channelName, newGameInfo);
-  return { success: true, view: new gameSetting.viewModelClass(newGameInfo) };
+  return { success: true, cuiGame: cuiGame, gameInfo: newGameInfo };
 }
 
 // createTicTacToeSlackGame('ch', 'a');

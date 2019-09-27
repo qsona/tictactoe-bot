@@ -221,10 +221,10 @@ export default function () {
                     await bot.reply(message, replyMessage);
                     break;
                 }
-                const { view } = result;
-                const stateText = view.stateText();
+                const { cuiGame, gameInfo } = result;
+                const stateText = cuiGame.stateText(gameInfo);
                 await bot.reply(message, `Move ${args.join(', ')} | by User ${user} \`\`\`\n${stateText}\`\`\``);
-                const gameoverText = view.gameoverText();
+                const gameoverText = cuiGame.gameoverText(gameInfo);
                 if (gameoverText != null) {
                     await bot.reply(message, `Game Over. ----------\n${gameoverText}`);
 
