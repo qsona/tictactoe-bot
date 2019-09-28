@@ -33,7 +33,7 @@ type GameSetting<GameState> = {
 
 const GameSettingMap = new Map<string, GameSetting<any>>();
 export function registerGame<GameState>(
-  name: string,
+  gameName: string,
   gameObj: GameObj<GameState>,
   cuiGame: Partial<CUIGame<GameState>>,
 ) {
@@ -45,7 +45,7 @@ export function registerGame<GameState>(
         typeof validNumPlayers === 'function' ? validNumPlayers :
           assertNever(validNumPlayers);
 
-  GameSettingMap.set(name, { gameObj, cuiGame: { ...newCUIGame, isValidNumPlayer } });
+  GameSettingMap.set(gameName, { gameObj, cuiGame: { ...newCUIGame, isValidNumPlayer } });
 }
 
 // TODO: use datastore
@@ -61,7 +61,8 @@ export function create(gameName: string, channelName: string, userId: string): R
   if (game) {
     return { success: false, reason: 'already_created' };
   }
-  if (gameName !== 'tic-tac-toe') {
+  const gameSetting = GameSettingMap.get(gameName);
+  if (!gameSetting) {
     return { success: false, reason: 'invalid_gamename' };
   }
   GameMap.set(channelName, {
@@ -169,13 +170,3 @@ export function processMove<GameState>(channelName: string, userId: string, args
   GameMap.set(channelName, newGameInfo);
   return { success: true, cuiGame: cuiGame, gameInfo: newGameInfo };
 }
-
-// createTicTacToeSlackGame('ch', 'a');
-// joinTicTacToeSlackGame('ch', 'b');
-// startTicTacToeGame('ch', 'b');
-// processMove('ch', 'a', 0);
-// processMove('ch', 'b', 6);
-// processMove('ch', 'a', 1);
-// processMove('ch', 'b', 7);
-// processMove('ch', 'a', 2); // gameover
-// processMove('ch', 'b', 8); // not proccessed
