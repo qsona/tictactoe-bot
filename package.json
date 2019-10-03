@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "assert-never": "^1.2.0",
-    "boardgame.io": "^0.32.1",
+    "boardgame.io": "^0.33.1",
     "botbuilder-adapter-slack": "^1.0.4",
     "botbuilder-storage-mongodb": "^0.9.5",
     "botkit": "^4.5.0",
