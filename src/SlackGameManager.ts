@@ -123,7 +123,7 @@ export function start(channelName: string, _userId: string): ResultOnStartedGame
   }
 
   const gameSetting = GameSettingMap.get(gameInfo.gameName)!;
-  if (gameSetting.cuiGame.isValidNumPlayer(gameInfo.userIds.length)) {
+  if (!gameSetting.cuiGame.isValidNumPlayer(gameInfo.userIds.length)) {
     return { success: false, reason: 'num_player_invalid' };
   }
 
