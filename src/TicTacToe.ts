@@ -1,4 +1,4 @@
-import { IPlayer, IGameArgs, INVALID_MOVE } from 'boardgame.io/core';
+import { IPlayer, GameObj, INVALID_MOVE } from 'boardgame.io/core';
 
 export type GameState = {
   cells: Array<IPlayer | null>
@@ -19,7 +19,7 @@ function IsVictory(cells: Array<IPlayer | null>, playerID: IPlayer) {
   return positions.some(pos => pos.every(i => cells[i] === playerID));
 }
 
-export const TicTacToe: IGameArgs<GameState> = {
+export const TicTacToe: GameObj<GameState> = {
   name: 'tic-tac-toe',
 
   setup: () => ({
@@ -39,15 +39,16 @@ export const TicTacToe: IGameArgs<GameState> = {
     },
   },
 
-  flow: {
-    movesPerTurn: 1,
-    endGameIf: (G, ctx) => {
-      if (IsVictory(G.cells, ctx.currentPlayer)) {
-        return { winner: ctx.currentPlayer };
-      }
-      if (G.cells.filter(c => c === null).length == 0) {
-        return { draw: true };
-      }
-    },
+  turn: {
+    moveLimit: 1,
+  },
+
+  endIf: (G, ctx) => {
+    if (IsVictory(G.cells, ctx.currentPlayer)) {
+      return { winner: ctx.currentPlayer };
+    }
+    if (G.cells.filter(c => c === null).length == 0) {
+      return { draw: true };
+    }
   },
 };

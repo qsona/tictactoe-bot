@@ -1,15 +1,6 @@
 declare module 'boardgame.io/core' {
   export const INVALID_MOVE: string;
   export type IPlayer = '0' | '1';
-  export class FlowObj {
-    ctx: (players: number) => any;
-    processGameEvent: (state: any, gameEvent: any) => any;
-  }
-  export class GameObj<TGameState> {
-    processMove: (G: TGameState, action: any, ctx: any) => any;
-    flow: FlowObj;
-    moves: { [key: string]: function };
-  }
   interface IGameCtx {
     numPlayer: number;
     turn: number;
@@ -17,39 +8,35 @@ declare module 'boardgame.io/core' {
     currentPlayerMoves: number;
     gameover?: any;
     phase: string;
-    allowedMoves: string[];
   }
-  interface IGameMoves<TGameState> {
-    [key: string]: (G: TGameState, ctx: IGameCtx, ...args: any[]) => void;
+  type IGameMove<TGameState> = (G: TGameState, ctx: IGameCtx, ...args: any[]) => void;
+
+  interface IGamePhase<TGameState> {
+    moves: { [key: string]: IGameMove<TGameState> };
+    start?: boolean;
+    endIf?: (G: TGameState, ctx: IGameCtx) => boolean;
   }
-  interface IGameFlowPhase<TGameState> {
-    next?: string;
-    allowedMoves: string[];
-    endPhaseIf?: (G: TGameState, ctx: IGameCtx) => boolean;
-    endGameIf?: (G: TGameState, ctx: IGameCtx) => any;
-  }
-  interface IGameFlowTrigger<TGameState> {
-    conditon: (G: TGameState, ctx: IGameCtx) => boolean;
-    action: (G: TGameState, ctx: IGameCtx) => any;
-  }
-  interface IGameFlow<TGameState> {
-    movesPerTurn?: number;
-    endGameIf?: (G: TGameState, ctx: IGameCtx) => any;
-    endTurnIf?: (G: TGameState, ctx: IGameCtx) => boolean;
-    onTurnEnd?: (G: TGameState, ctx: IGameCtx) => void;
-    triggers?: IGameFlowTrigger<TGameState>[];
-    startingPhase?: string;
-    phases?: { [key: string]: IGameFlowPhase<TGameState> };
-    optimisticUpdate?: (G: TGameState, ctx: IGameCtx, move: any) => boolean;
-  }
-  interface IGameArgs<TGameState> {
+  interface GameObj<TGameState> {
     name?: string;
     setup: (numPlayers: number) => TGameState;
-    moves: IGameMoves<TGameState>;
+    moves: { [key: string]: IGameMove<TGameState> };
     playerView?: (G: TGameState, ctx: IGameCtx, playerID: IPlayer) => any;
-    flow?: IGameFlow<TGameState>;
+    phases?: {
+      onBegin?: (G: TGameState, ctx: IGameCtx) => any;
+      onEnd?: (G: TGameState, ctx: IGameCtx) => any;
+      endIf?: (G: TGameState, ctx: IGameCtx) => boolean;
+      [key: string]: IGamePhase;
+    };
+    turn?: {
+      onBegin?: (G: TGameState, ctx: IGameCtx) => any;
+      onEnd?: (G: TGameState, ctx: IGameCtx) => any;
+      endIf?: (G: TGameState, ctx: IGameCtx) => boolean;
+      order?: any;
+      moveLimit?: number;
+    }
+
+    endIf?: (G: TGameState, ctx: IGameCtx) => any;
   }
-  export function Game<TGameState>(gameArgs: IGameArgs<TGameState>): GameObj<TGameState>;
 
   export class PlayerView {
     static STRIP_SECRETS: any;
@@ -61,8 +48,6 @@ declare module 'boardgame.io/core' {
   }
 
   export function InitializeGame<TGameState>(obj: { game: GameObj<TGameState>, numPlayers: number }): IGame<TGameState>;
-  // export function FnWrap<TGameState>(move: any, game: IGame):
-  //   (G: TGameState, ctxWithPlayerID: IGameCtx & { playerID: IPlayer }, ...args: any) => any;
   export function CreateGameReducer<TGameState>(obj: { game: GameObj<TGameState>, multiplayer: boolean }):
     (state: IGame<TGameState>, action: any) => IGame<TGameState>;
 }
