@@ -8,3 +8,20 @@ import { registerGame } from './SlackGameManager'
 registerGame('tic-tac-toe', TicTacToe, TicTacToeCUIGame);
 
 start();
+
+// import {
+//   getGameInfo,
+//   create,
+//   destroy,
+//   join,
+//   leave,
+//   start as s,
+//   processMove
+// } from './SlackGameManager';
+
+// var result: any = create('tic-tac-toe', 'a', 'a');
+// console.log('c', result);
+// result = join('a', 'b');
+// console.log('j', result);
+// result = s('a', 'a');
+// console.log(result);

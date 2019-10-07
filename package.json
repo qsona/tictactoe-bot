@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "assert-never": "^1.2.0",
-    "boardgame.io": "^0.33.1",
+    "boardgame.io": "qsona/boardgame.io#for_slack_integration",
     "botbuilder-adapter-slack": "^1.0.4",
     "botbuilder-storage-mongodb": "^0.9.5",
     "botkit": "^4.5.0",
