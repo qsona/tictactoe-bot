@@ -25,3 +25,5 @@ start();
 // console.log('j', result);
 // result = s('a', 'a');
 // console.log(result);
+
+// processMove('a', 'a', ['1', '1']);
