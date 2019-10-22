@@ -69,7 +69,7 @@ function pickCards(hand: Card[], cards: Card[]): Card[] | false {
   return newHand;
 }
 
-function getPublicView(G: GameState): GameStatePublicView {
+export function getPublicView(G: GameState): GameStatePublicView {
   const fields = G.fields.map(({ players, winner }) => {
     const newPlayers = mapValues(players, (data): FieldPlayerView => {
       if (data) {
@@ -95,7 +95,7 @@ function getPublicView(G: GameState): GameStatePublicView {
   };
 }
 
-function getPrivateView(G: GameState, playerID: IPlayer): GameStatePrivateView {
+export function getPrivateView(G: GameState, playerID: IPlayer): GameStatePrivateView {
   return {
     myFields: G.fields[playerID],
     myHand: G.hands[playerID],
