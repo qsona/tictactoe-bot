@@ -1,5 +1,6 @@
-import mapValues from 'lodash-es/mapValues';
-import times from 'lodash-es/times';
+// import mapValues from 'lodash-es/mapValues';
+// import times from 'lodash-es/times';
+import { mapValues, times } from 'lodash';
 import { IPlayer, GameObj, INVALID_MOVE } from 'boardgame.io/core';
 import assertNever from 'assert-never';
 
