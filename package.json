@@ -16,7 +16,7 @@
     "botkit": "^4.5.0",
     "botkit-plugin-cms": "^1.0.2",
     "dotenv": "^7.0.0",
-    "lodash": "^4.17.15",
+    "lodash": "^4.17.21",
     "ts-node": "^8.4.1",
     "typescript": "^3.6.3"
   }
